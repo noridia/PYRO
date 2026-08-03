@@ -115,9 +115,7 @@ def unzip_file(fpath, dest_dir):
         with zipfile.ZipFile(fpath) as z: z.extractall(dest_dir)
     elif ext in (".tar", ".gz", ".bz2", ".xz", ".tgz"):
         subprocess.run(["tar", "xf", fpath, "-C", dest_dir], timeout=600, check=True)
-    elif ext == ".rar":
-        subprocess.run(["unrar", "x", "-y", fpath, dest_dir], timeout=600, check=True)
-    elif ext == ".7z":
+    elif ext in (".rar", ".7z"):
         subprocess.run(["7z", "x", fpath, f"-o{dest_dir}", "-y"], timeout=600, check=True)
 
 def split_file(fpath, chunk=config.TG_PART_BYTES):
