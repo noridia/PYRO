@@ -1,9 +1,9 @@
 import os, re, time, math, threading, subprocess, zipfile, shutil
-from pyrogram.enums import ParseMode, LinkPreviewOptions
+from pyrogram.enums import ParseMode
 
 from . import config
 
-LPO = LinkPreviewOptions(is_disabled=True)
+LPO = True  # disable_web_page_preview flag (pyrogram 2.0.106 has no LinkPreviewOptions)
 
 def bar(done, total, L=12):
     if total <= 0: return "[" + "□" * L + "] 0.0%"
@@ -74,7 +74,7 @@ async def sedit(chat_id, msg_id, text, markup=None, force=False):
             _status_last_edit[key] = time.time()
         await core.edit_msg(chat_id, msg_id, _text, _markup)
 
-    loop = asyncio.get_event_loop()
+    loop = core.get_loop()
     t = threading.Timer(delay, lambda: asyncio.run_coroutine_threadsafe(_do_edit(), loop))
     t.daemon = True
     with _status_lock:
@@ -84,9 +84,9 @@ async def sedit(chat_id, msg_id, text, markup=None, force=False):
 import asyncio
 
 def get_thread_id(message):
-    if message.is_topic_message:
-        return message.message_thread_id
-    return None
+    # pyrogram 2.0.106: no is_topic_message / message_thread_id attrs.
+    # reply_to_top_message_id == the topic root message id for thread messages.
+    return getattr(message, "reply_to_top_message_id", None) or None
 
 async def ssend(chat_id, text, thread_id=None, reply_markup=None):
     from .core import send_msg

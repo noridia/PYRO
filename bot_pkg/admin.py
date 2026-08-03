@@ -5,7 +5,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from . import config
 from .core import (app, ACTIVE_JOBS, PENDING_TASKS, jobs_lock, task_queue,
                    disk_free_mb, disk_total_mb, _allowed_users, save_users,
-                   purge_stale, send_msg, edit_msg, safe_answer, LPO)
+                   purge_stale, send_msg, edit_msg, safe_answer, LPO, get_loop)
 from .utils import (sedit, ssend, parse_cmd, get_thread_id, fmt_time, cbtn)
 
 # ── Stats ──────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ def kill_job(task_id):
         task_dir = job.get("dir")
         import asyncio
         try:
-            loop = asyncio.get_event_loop()
+            loop = get_loop()
             asyncio.run_coroutine_threadsafe(
                 edit_msg(job["chat_id"], job["msg_id"], "🛑 <b>Cancelled.</b>"), loop)
         except: pass

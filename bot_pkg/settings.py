@@ -4,7 +4,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from . import config
 from .core import (app, get_prefs, save_prefs, get_chat_prefs, save_settings,
-                   list_cookies, cookie_path, send_msg, edit_msg, safe_answer, LPO)
+                   list_cookies, cookie_path, send_msg, edit_msg, safe_answer, LPO, get_loop)
 from .utils import get_thread_id, sedit
 
 @app.on_message(filters.command("settings") & filters.private)
@@ -81,7 +81,7 @@ async def handle_settings_cb(client, call):
     elif action == "igindex":
         await safe_answer(call.id)
         from .instagram import render_igindex
-        asyncio.get_event_loop().call_soon_threadsafe(
+        get_loop().call_soon_threadsafe(
             lambda: asyncio.ensure_future(render_igindex(chat_id, msg_id, 0)))
         return
     elif action == "setcookie":

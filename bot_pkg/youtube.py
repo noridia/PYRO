@@ -6,7 +6,7 @@ from yt_dlp import YoutubeDL
 from . import config
 from .core import (app, ACTIVE_JOBS, PENDING_TASKS, jobs_lock, task_queue,
                    ensure_free, get_job_prefs, get_prefs, get_active_cookie,
-                   send_msg, edit_msg, safe_answer, LPO)
+                   send_msg, edit_msg, safe_answer, LPO, get_loop)
 from .utils import (sedit, cbtn, fmtsz, bar, fmt_time, hms2s, parse_cmd, get_thread_id)
 
 FORMAT_TIMEOUT = 120
@@ -219,7 +219,7 @@ async def cmd_yt(client, message, forced_cmd=None):
     tid = str(uuid.uuid4())[:6]
     msg = await message.reply("🔍 <b>Fetching formats…</b>")
     def _fetch():
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         ck = get_active_cookie(user_id)
         ck_status = (f"🍪 <code>{get_prefs(user_id).get('active_cookie','?')}</code>" if ck else "⚠️ <i>no cookie</i>")
         try:
@@ -248,7 +248,7 @@ async def cmd_yt(client, message, forced_cmd=None):
 
 def _finalize_yt(call, tid, fmt_spec):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     if tid not in PENDING_TASKS:
         asyncio.run_coroutine_threadsafe(safe_answer(call.id, "⚠️ Session expired."), loop); return
     task = PENDING_TASKS.pop(tid)
@@ -289,7 +289,7 @@ def _make_dl_opts_for_client(base_opts, client_name):
 
 def process_yt(chat_id, msg_id, task, fmt_spec, merge_ext, task_id):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id)
     os.makedirs(task_dir, exist_ok=True)
     job_prefs = task["job_prefs"]; url = task["url"]

@@ -5,7 +5,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from . import config
 from .core import (app, ACTIVE_JOBS, PENDING_TASKS, jobs_lock, task_queue,
                    ensure_free, get_job_prefs, get_prefs, get_active_cookie,
-                   cookie_path, dir_size_mb, send_msg, edit_msg, safe_answer, LPO)
+                   cookie_path, dir_size_mb, send_msg, edit_msg, safe_answer, LPO, get_loop)
 from .utils import (sedit, cbtn, fmtsz, bar, fmt_time, parse_cmd, get_thread_id,
                     prepare_payload, zip_dir)
 from .drive import (get_drive_service, get_or_create_folder, drive_quota,
@@ -302,7 +302,7 @@ async def igidx_cb(client, call):
 # ── IG Single Post ─────────────────────────────────────────────────────
 def process_ig_single(chat_id, msg_id, url, custom, folder, task_id, job_prefs, user_id):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id)
     os.makedirs(task_dir, exist_ok=True)
     with jobs_lock:
@@ -340,7 +340,7 @@ def process_ig_single(chat_id, msg_id, url, custom, folder, task_id, job_prefs, 
 # ── IG Archive ─────────────────────────────────────────────────────────
 def process_ig_archive(chat_id, msg_id, username, content_types, folder, task_id, job_prefs, user_id):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     dest = job_prefs.get("destination", "drive")
     thread_id = job_prefs.get("thread_id")
     tmp_root = os.path.join(config.DOWNLOAD_DIR, task_id)

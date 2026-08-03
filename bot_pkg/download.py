@@ -5,7 +5,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from . import config
 from .core import (app, ACTIVE_JOBS, PENDING_TASKS, jobs_lock, task_queue,
                    ensure_free, get_job_prefs, get_active_cookie, cookie_path,
-                   dir_size_mb, send_msg, edit_msg, safe_answer, LPO)
+                   dir_size_mb, send_msg, edit_msg, safe_answer, LPO, get_loop)
 from .utils import (sedit, ssend, cbtn, bar, fmtsz, fmt_time, smooth,
                     parse_cmd, get_thread_id, unzip_file, split_file)
 
@@ -15,7 +15,7 @@ class BatchTracker:
         self.total = len(urls)
         self.tasks = list(zip(task_ids, urls, ["queued"] * len(urls)))
         self.lock = threading.Lock()
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         asyncio.run_coroutine_threadsafe(self._render(), loop)
 
     def notify(self, task_id, status):
@@ -23,7 +23,7 @@ class BatchTracker:
             for i, (tid, url, _) in enumerate(self.tasks):
                 if tid == task_id:
                     self.tasks[i] = (tid, url, status); break
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         asyncio.run_coroutine_threadsafe(self._render(), loop)
 
     async def _render(self):
@@ -59,7 +59,7 @@ def _batch_notify(job_prefs, success, cancelled=False):
     tracker.notify(batch_tid, status)
     with jobs_lock:
         if all(s != "queued" for _, _, s in tracker.tasks):
-            loop = asyncio.get_event_loop()
+            loop = get_loop()
             asyncio.run_coroutine_threadsafe(tracker.finalize(), loop)
             PENDING_TASKS.pop(bid, None)
 
@@ -99,7 +99,7 @@ async def cmd_mirror(client, message):
 # ── TG File Download ───────────────────────────────────────────────────
 def process_tg_file(chat_id, msg_id, file_id, file_name, cmd, custom, folder, task_id, job_prefs):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id)
     os.makedirs(task_dir, exist_ok=True)
     with jobs_lock:
@@ -227,7 +227,7 @@ def _parse_aria2_error(log_lines):
 
 def process_subprocess(chat_id, msg_id, cmd, link, custom, folder, task_id, job_prefs, raw_flags=None):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id)
     os.makedirs(task_dir, exist_ok=True)
     user_id = job_prefs.get("user_id", chat_id)
@@ -322,7 +322,7 @@ def process_subprocess(chat_id, msg_id, cmd, link, custom, folder, task_id, job_
                     import html as _html
                     log_text = _html.escape(log_text)
                     loop.run_until_complete(
-                        client.edit_message_text(chat_id, msg_id,
+                        app.edit_message_text(chat_id, msg_id,
                             f"<b>📝 {cmd} output:</b>\n<pre>{log_text or '(none)'}</pre>"))
     except Exception as e:
         _watch_stop.set()
@@ -365,7 +365,7 @@ async def cmd_unzip(client, message):
 
 def process_unzip_tg(chat_id, msg_id, file_id, file_name, task_id, job_prefs, folder):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id); os.makedirs(task_dir, exist_ok=True)
     try:
         with jobs_lock:
@@ -391,7 +391,7 @@ def process_unzip_tg(chat_id, msg_id, file_id, file_name, task_id, job_prefs, fo
 
 def process_unzip_url(chat_id, msg_id, url, task_id, job_prefs, folder, custom):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id); os.makedirs(task_dir, exist_ok=True)
     try:
         with jobs_lock:

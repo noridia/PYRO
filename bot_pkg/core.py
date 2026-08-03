@@ -1,7 +1,7 @@
 import os, asyncio, time, json, shutil, threading, queue
 from pyrogram import Client, filters
 from pyrogram.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.enums import ParseMode, LinkPreviewOptions
+from pyrogram.enums import ParseMode
 
 from . import config
 
@@ -134,17 +134,30 @@ for _ in range(8):
     threading.Thread(target=bg_worker, daemon=True).start()
 
 # ── Telegram helper (rate-limit-free Pyrogram sends) ──────────────────
-LPO = LinkPreviewOptions(is_disabled=True)
+LPO = True  # disable_web_page_preview flag (pyrogram 2.0.106 has no LinkPreviewOptions)
+
+# Captured at import time (main thread) — Python 3.12 raises RuntimeError on
+# asyncio.get_event_loop() from worker threads, so workers share this loop.
+_MAIN_LOOP = asyncio.get_event_loop()
+
+def get_loop():
+    """Return the main event loop — safe to call from worker threads."""
+    global _MAIN_LOOP
+    if _MAIN_LOOP is None or _MAIN_LOOP.is_closed():
+        _MAIN_LOOP = asyncio.new_event_loop()
+    return _MAIN_LOOP
 
 async def send_msg(chat_id, text, reply_markup=None, reply_to_message_id=None,
                    message_thread_id=None, parse_mode=ParseMode.HTML):
     """Safe send with FloodWait retry."""
     kwargs = dict(chat_id=chat_id, text=text, reply_markup=reply_markup,
-                  link_preview=LPO, parse_mode=parse_mode)
+                  disable_web_page_preview=LPO, parse_mode=parse_mode)
     if reply_to_message_id:
         kwargs["reply_to_message_id"] = reply_to_message_id
-    if message_thread_id:
-        kwargs["message_thread_id"] = message_thread_id
+    elif message_thread_id:
+        # pyrogram 2.0.106 has no message_thread_id param — replying to the
+        # topic root message routes into the same topic thread
+        kwargs["reply_to_message_id"] = message_thread_id
     for attempt in range(5):
         try:
             return await app.send_message(**kwargs)
@@ -167,7 +180,7 @@ async def edit_msg(chat_id, message_id, text, reply_markup=None,
         try:
             return await app.edit_message_text(
                 chat_id=chat_id, message_id=message_id, text=text,
-                reply_markup=reply_markup, link_preview=LPO, parse_mode=parse_mode)
+                reply_markup=reply_markup, disable_web_page_preview=LPO, parse_mode=parse_mode)
         except Exception as e:
             err = str(e).lower()
             if "not modified" in err: return None
@@ -239,10 +252,16 @@ async def _set_commands():
             print(f"Commands ({i+1}/5): {e}"); await asyncio.sleep(3)
 
 def start():
+    global _MAIN_LOOP
     print(f"{'='*55}\n  AzuDL Pyro  |  {time.strftime('%Y-%m-%d %H:%M:%S')}\n{'='*55}")
     print(f"Online | Free disk: {disk_free_mb()} MB")
 
     async def _boot():
+        global _MAIN_LOOP
+        # Capture the running loop for worker threads BEFORE awaiting anything
+        _MAIN_LOOP = asyncio.get_running_loop()
+        # Start the client — app.run(coroutine) does NOT do client operations
+        await app.start()
         await _set_commands()
         # warm Drive service
         try:
@@ -253,5 +272,8 @@ def start():
                     srv.files().list(pageSize=1, fields="files(id)").execute)
         except: pass
         print("Polling...")
+        # Block forever (until SIGINT/SIGTERM) so handlers keep running
+        from pyrogram import idle
+        await idle()
 
     app.run(_boot())

@@ -14,7 +14,7 @@ from .core import (app, ACTIVE_JOBS, PENDING_TASKS, DRIVE_CACHE, DRIVE_NAV,
                    DRIVE_FILE_REFS, CACHE_TTL, jobs_lock, task_queue,
                    ensure_free, get_job_prefs, get_prefs, get_chat_prefs,
                    get_active_cookie, disk_free_mb, _load_json, _save_json,
-                   cookie_path, send_msg, edit_msg, safe_answer, safe_delete, LPO)
+                   cookie_path, send_msg, edit_msg, safe_answer, safe_delete, LPO, get_loop)
 from .utils import (sedit, cbtn, fmtsz, bar, fmt_time, smooth, hms2s,
                     parse_cmd, prepare_payload, zip_dir, unzip_file, split_file)
 
@@ -199,7 +199,7 @@ def upload_file_to_drive(fpath, parent_id, chat_id, msg_id, task_id, status_fn=N
             status_fn(done, fsize, fmtsz(done), fmtsz(fsize), "…", fname)
         else:
             import asyncio
-            loop = asyncio.get_event_loop()
+            loop = get_loop()
             asyncio.run_coroutine_threadsafe(
                 sedit(chat_id, msg_id,
                     f"☁️ <b>Uploading to Drive…</b>\n{bar(done, total)}\n"
@@ -273,7 +273,7 @@ def upload_dir_to_drive(task_dir, base_folder_id, chat_id, msg_id, task_id, labe
                            _db=done_bytes, _tb=total_bytes,
                            _fc=file_count, _tf=total_files):
                 import asyncio
-                loop = asyncio.get_event_loop()
+                loop = get_loop()
                 asyncio.run_coroutine_threadsafe(
                     sedit(chat_id, msg_id,
                         f"{label} <b>Uploading to Drive…</b>\n📁 <code>{_fc}/{_tf}</code> files\n"
@@ -310,7 +310,7 @@ def _finalize_drive(chat_id, msg_id, task_id, top_items, all_links, start_time, 
         _render_drive_success(chat_id, msg_id, base_text, single_files)
     else:
         import asyncio
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         asyncio.run_coroutine_threadsafe(sedit(chat_id, msg_id, base_text), loop)
 
 def _drive_item_is_folder(file_id):
@@ -324,7 +324,7 @@ def _drive_item_is_folder(file_id):
 def _render_drive_success(chat_id, msg_id, text, items):
     if not items:
         import asyncio
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         asyncio.run_coroutine_threadsafe(sedit(chat_id, msg_id, text), loop)
         return
     pid = str(uuid.uuid4())[:6]
@@ -333,7 +333,7 @@ def _render_drive_success(chat_id, msg_id, text, items):
     m.row(InlineKeyboardButton("✏️ Rename", callback_data=f"act:{pid}:ren"),
           InlineKeyboardButton("🗑 Delete", callback_data=f"act:{pid}:del"))
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     asyncio.run_coroutine_threadsafe(sedit(chat_id, msg_id, text, m), loop)
 
 @app.on_callback_query(filters.regex(r"^act:"))
@@ -423,7 +423,7 @@ async def _send_single_file_tg(chat_id, fpath, fname, thread_id=None):
     del_m = InlineKeyboardMarkup()
     del_m.add(InlineKeyboardButton("🗑 Delete", callback_data="delup"))
     base_kw = dict(caption=f"<code>{fname}</code>", reply_markup=del_m)
-    if thread_id: base_kw["message_thread_id"] = thread_id
+    if thread_id: base_kw["reply_to_message_id"] = thread_id
 
     if fsize > 2 * 1024 * 1024 * 1024:
         # Pyrogram supports up to 2GB, but let's split at 1.9GB for safety
@@ -432,7 +432,7 @@ async def _send_single_file_tg(chat_id, fpath, fname, thread_id=None):
         for i, part in enumerate(parts):
             pname = f"{fname}.part{i+1:03d}"
             pkw = dict(caption=f"<code>{pname}</code>", reply_markup=del_m)
-            if thread_id: pkw["message_thread_id"] = thread_id
+            if thread_id: pkw["reply_to_message_id"] = thread_id
             try:
                 with open(part, "rb") as fh:
                     await app.send_document(chat_id, fh, **pkw)
@@ -617,7 +617,7 @@ class StreamingDispatcher:
         if extras:
             lines.append(f"  {' | '.join(extras)}")
         import asyncio
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         asyncio.run_coroutine_threadsafe(
             sedit(self.chat_id, self.msg_id, "\n".join(lines), cbtn(self.task_id)), loop)
 
@@ -647,7 +647,7 @@ class StreamingDispatcher:
             _render_drive_success(self.chat_id, self.msg_id, "\n".join(lines), items)
         else:
             import asyncio
-            loop = asyncio.get_event_loop()
+            loop = get_loop()
             asyncio.run_coroutine_threadsafe(
                 sedit(self.chat_id, self.msg_id, "\n".join(lines)), loop)
         if self.dest in ("drive", "both"):
@@ -664,12 +664,12 @@ async def cmd_drive(client, message):
         if not srv:
             asyncio.run_coroutine_threadsafe(
                 sedit(message.chat.id, msg.id, "❌ Drive not configured or auth failed."),
-                asyncio.get_event_loop())
+                get_loop())
             return
         DRIVE_NAV[message.chat.id] = [(config.DRIVE_FOLDER_ID, "🏠 Root")]
         asyncio.run_coroutine_threadsafe(
             render_drive(message.chat.id, msg.id, config.DRIVE_FOLDER_ID, 0),
-            asyncio.get_event_loop())
+            get_loop())
     threading.Thread(target=_start, daemon=True).start()
 
 async def render_drive(chat_id, msg_id, folder_id, page=0):
@@ -727,25 +727,25 @@ async def drive_nav_cb(client, call):
         nav.append((folder_id, fname))
         await sedit(chat_id, msg_id, f"📂 <b>Loading</b> <code>{fname}</code>…")
         threading.Thread(target=asyncio.run_coroutine_threadsafe,
-            args=(render_drive(chat_id, msg_id, folder_id, 0), asyncio.get_event_loop()),
+            args=(render_drive(chat_id, msg_id, folder_id, 0), get_loop()),
             daemon=True).start()
     elif action == "up":
         nav = DRIVE_NAV.get(chat_id, [(config.DRIVE_FOLDER_ID, "🏠 Root")])
         if len(nav) > 1: nav.pop()
         await sedit(chat_id, msg_id, "📂 <b>Going back…</b>")
         threading.Thread(target=asyncio.run_coroutine_threadsafe,
-            args=(render_drive(chat_id, msg_id, nav[-1][0], 0), asyncio.get_event_loop()),
+            args=(render_drive(chat_id, msg_id, nav[-1][0], 0), get_loop()),
             daemon=True).start()
     elif action == "pg":
         await sedit(chat_id, msg_id, "📂 <b>Loading…</b>")
         threading.Thread(target=asyncio.run_coroutine_threadsafe,
-            args=(render_drive(chat_id, msg_id, parts[2], int(parts[3])), asyncio.get_event_loop()),
+            args=(render_drive(chat_id, msg_id, parts[2], int(parts[3])), get_loop()),
             daemon=True).start()
     elif action == "refresh":
         _invalidate_cache(parts[2])
         await sedit(chat_id, msg_id, "🔄 <b>Refreshing…</b>")
         threading.Thread(target=asyncio.run_coroutine_threadsafe,
-            args=(render_drive(chat_id, msg_id, parts[2], int(parts[3])), asyncio.get_event_loop()),
+            args=(render_drive(chat_id, msg_id, parts[2], int(parts[3])), get_loop()),
             daemon=True).start()
     elif action == "del":
         ref_key = parts[2]; ref = _get_ref(ref_key)
@@ -757,7 +757,7 @@ async def drive_nav_cb(client, call):
             _invalidate_cache(folder_id)
         except Exception as e: return await sedit(chat_id, msg_id, f"❌ <code>{e}</code>")
         threading.Thread(target=asyncio.run_coroutine_threadsafe,
-            args=(render_drive(chat_id, msg_id, folder_id, page), asyncio.get_event_loop()),
+            args=(render_drive(chat_id, msg_id, folder_id, page), get_loop()),
             daemon=True).start()
     elif action == "delfolder":
         folder_id = parts[2]
@@ -778,7 +778,7 @@ async def drive_nav_cb(client, call):
         if len(nav) > 1: nav.pop()
         _invalidate_cache(nav[-1][0])
         threading.Thread(target=asyncio.run_coroutine_threadsafe,
-            args=(render_drive(chat_id, msg_id, nav[-1][0], 0), asyncio.get_event_loop()),
+            args=(render_drive(chat_id, msg_id, nav[-1][0], 0), get_loop()),
             daemon=True).start()
     elif action == "link":
         ref_key = parts[2]; ref = _get_ref(ref_key)
@@ -802,7 +802,7 @@ async def drive_nav_cb(client, call):
                 srv = get_drive_service()
                 if not srv:
                     asyncio.run_coroutine_threadsafe(
-                        sedit(chat_id, msg_id, "❌ Drive not configured."), asyncio.get_event_loop())
+                        sedit(chat_id, msg_id, "❌ Drive not configured."), get_loop())
                     return
                 try: srv.permissions().create(fileId=folder_id_target, body={"type": "anyone", "role": "reader"}).execute()
                 except Exception as e: print(f"[folderlink perm] {e}")
@@ -817,10 +817,10 @@ async def drive_nav_cb(client, call):
                 asyncio.run_coroutine_threadsafe(
                     sedit(chat_id, msg_id,
                         f"📁 <b>Folder:</b> <code>{fname}</code>\n\n🔗 <b>Public Link:</b>\n<code>{link}</code>", back_m),
-                    asyncio.get_event_loop())
+                    get_loop())
             except Exception as e:
                 asyncio.run_coroutine_threadsafe(
-                    sedit(chat_id, msg_id, f"❌ <code>{e}</code>"), asyncio.get_event_loop())
+                    sedit(chat_id, msg_id, f"❌ <code>{e}</code>"), get_loop())
         threading.Thread(target=_get_folder_link, daemon=True).start()
 
 @app.on_message(filters.command("drivesearch") & filters.private)
@@ -864,7 +864,7 @@ async def cmd_gdrive(client, message):
 
 def process_gdown(chat_id, msg_id, link, custom, folder, task_id, job_prefs):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     task_dir = os.path.join(config.DOWNLOAD_DIR, task_id)
     os.makedirs(task_dir, exist_ok=True)
     with jobs_lock:
@@ -1050,7 +1050,7 @@ def process_gdown(chat_id, msg_id, link, custom, folder, task_id, job_prefs):
 
 def _zip_and_collect(task_dir, all_files, base_name, chat_id, msg_id, task_id):
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = get_loop()
     zip_base = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', (base_name or "").strip())
     if not zip_base: zip_base = "archive"
     zip_name = zip_base + ".zip"
@@ -1110,7 +1110,7 @@ def _gdown_single_with_api(file_id, task_dir, custom, chat_id, msg_id, task_id, 
         else: req = srv.files().get_media(fileId=file_id)
         samples = []; last_t = [0.0]; done_b = [0]
         import asyncio
-        loop = asyncio.get_event_loop()
+        loop = get_loop()
         with open(fpath, "wb") as fh:
             downloader = _DriveDownloader(req, fh)
             while True:
