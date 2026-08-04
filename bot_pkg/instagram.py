@@ -520,7 +520,7 @@ def process_ig_archive(chat_id, msg_id, username, content_types, folder, task_id
     shutil.rmtree(tmp_root, ignore_errors=True)
 
 # ── IG command + picker ────────────────────────────────────────────────
-@app.on_message(filters.command("ig") & filters.private)
+@app.on_message(filters.command("ig"))
 async def cmd_ig(client, message):
     from .auth import is_auth
     if not is_auth(message): return

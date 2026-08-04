@@ -365,7 +365,7 @@ async def final_action_cb(client, call):
             f"✏️ <b>Rename:</b> <code>{old_name}</code>\n\nReply with new name:",
             reply_markup=m)
 
-@app.on_message(filters.text & filters.private)
+@app.on_message(filters.text)
 async def process_rename(client, message):
     key = f"ren_{message.chat.id}"
     if key not in PENDING_TASKS: return
@@ -654,7 +654,7 @@ class StreamingDispatcher:
             _invalidate_cache(self._drive_parent or config.DRIVE_FOLDER_ID)
 
 # ── Drive Browser ──────────────────────────────────────────────────────
-@app.on_message(filters.command("drive") & filters.private)
+@app.on_message(filters.command("drive"))
 async def cmd_drive(client, message):
     from .auth import is_auth
     if not is_auth(message): return
@@ -823,7 +823,7 @@ async def drive_nav_cb(client, call):
                     sedit(chat_id, msg_id, f"❌ <code>{e}</code>"), get_loop())
         threading.Thread(target=_get_folder_link, daemon=True).start()
 
-@app.on_message(filters.command("drivesearch") & filters.private)
+@app.on_message(filters.command("drivesearch"))
 async def cmd_drivesearch(client, message):
     from .auth import is_auth
     if not is_auth(message): return
@@ -849,7 +849,7 @@ async def cmd_drivesearch(client, message):
     except Exception as e: await message.reply(f"❌ <code>{e}</code>")
 
 # ── GDrive Download ───────────────────────────────────────────────────
-@app.on_message(filters.command("gdrive") & filters.private)
+@app.on_message(filters.command("gdrive"))
 async def cmd_gdrive(client, message):
     from .auth import is_auth
     if not is_auth(message): return

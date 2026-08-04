@@ -64,7 +64,7 @@ def _batch_notify(job_prefs, success, cancelled=False):
             PENDING_TASKS.pop(bid, None)
 
 # ── Mirror / Leech ─────────────────────────────────────────────────────
-@app.on_message(filters.command(["m", "zm", "l", "zl"]) & filters.private)
+@app.on_message(filters.command(["m", "zm", "l", "zl"]))
 async def cmd_mirror(client, message):
     from .auth import is_auth
     if not is_auth(message): return
@@ -140,7 +140,7 @@ def process_tg_file(chat_id, msg_id, file_id, file_name, cmd, custom, folder, ta
         shutil.rmtree(task_dir, ignore_errors=True)
 
 # ── Subprocess Downloader (aria2c / gallery-dl / wget) ─────────────────
-@app.on_message(filters.command(["torrent", "gallery", "clone"]) & filters.private)
+@app.on_message(filters.command(["torrent", "gallery", "clone"]))
 async def cmd_dl(client, message, forced_cmd=None, mirror_cmd=None):
     from .auth import is_auth
     if not is_auth(message): return
@@ -338,7 +338,7 @@ def process_subprocess(chat_id, msg_id, cmd, link, custom, folder, task_id, job_
         shutil.rmtree(task_dir, ignore_errors=True)
 
 # ── Unzip ──────────────────────────────────────────────────────────────
-@app.on_message(filters.command(["unzip", "unzipl", "unzipm"]) & filters.private)
+@app.on_message(filters.command(["unzip", "unzipl", "unzipm"]))
 async def cmd_unzip(client, message):
     from .auth import is_auth
     if not is_auth(message): return

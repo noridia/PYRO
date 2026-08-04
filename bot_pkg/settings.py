@@ -7,7 +7,7 @@ from .core import (app, get_prefs, save_prefs, get_chat_prefs, save_settings,
                    list_cookies, cookie_path, send_msg, edit_msg, safe_answer, LPO, get_loop)
 from .utils import get_thread_id, sedit
 
-@app.on_message(filters.command("settings") & filters.private)
+@app.on_message(filters.command("settings"))
 async def cmd_settings(client, message):
     from .auth import is_auth
     if not is_auth(message):
@@ -136,7 +136,7 @@ async def render_cookie_manager(chat_id, msg_id, user_id, thread_id=None):
         f"<b>Active:</b> <code>{active}</code>",
         m)
 
-@app.on_message(filters.command("cookie") & filters.private)
+@app.on_message(filters.command("cookie"))
 async def handle_cookie(client, message):
     from .auth import is_auth
     if not is_auth(message): return

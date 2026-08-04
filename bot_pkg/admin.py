@@ -9,7 +9,7 @@ from .core import (app, ACTIVE_JOBS, PENDING_TASKS, jobs_lock, task_queue,
 from .utils import (sedit, ssend, parse_cmd, get_thread_id, fmt_time, cbtn)
 
 # ── Stats ──────────────────────────────────────────────────────────────
-@app.on_message(filters.command("stats") & filters.private)
+@app.on_message(filters.command("stats"))
 async def cmd_stats(client, message):
     from .auth import is_auth
     if not is_auth(message): return
@@ -22,7 +22,7 @@ async def cmd_stats(client, message):
     await message.reply(text)
 
 # ── Clean ──────────────────────────────────────────────────────────────
-@app.on_message(filters.command("clean") & filters.private)
+@app.on_message(filters.command("clean"))
 async def cmd_clean(client, message):
     from .auth import is_auth
     if not is_auth(message): return
@@ -30,7 +30,7 @@ async def cmd_clean(client, message):
     await message.reply(f"🧹 Freed <code>{disk_free_mb()-before} MB</code>. Now <code>{disk_free_mb()} MB</code> free.")
 
 # ── Shell ──────────────────────────────────────────────────────────────
-@app.on_message(filters.command(["shell", "sh"]) & filters.private)
+@app.on_message(filters.command(["shell", "sh"]))
 async def cmd_shell(client, message):
     if not message.from_user or str(message.from_user.id) != config.ADMIN_ID:
         return await message.reply("⛔ Admin only.")
@@ -56,7 +56,7 @@ async def cmd_shell(client, message):
         f"<pre>{out}</pre>")
 
 # ── Cancel / Cancel All ────────────────────────────────────────────────
-@app.on_message(filters.command("cancel") & filters.private)
+@app.on_message(filters.command("cancel"))
 async def cmd_cancel(client, message):
     from .auth import is_auth
     if not is_auth(message): return
@@ -123,7 +123,7 @@ async def handle_delete_upload(client, call):
         else:
             await safe_answer(call.id, f"⚠️ {msg[:60]}")
 
-@app.on_message(filters.command(["ca", "cancelall"]) & filters.private)
+@app.on_message(filters.command(["ca", "cancelall"]))
 async def cmd_cancel_all(client, message):
     if not message.from_user or str(message.from_user.id) != config.ADMIN_ID: return
     with jobs_lock: ids = list(ACTIVE_JOBS.keys())
@@ -131,7 +131,7 @@ async def cmd_cancel_all(client, message):
     await message.reply(f"💥 <b>{count} job(s) killed.</b>")
 
 # ── Help ───────────────────────────────────────────────────────────────
-@app.on_message(filters.command(["start", "help"]) & filters.private)
+@app.on_message(filters.command(["start", "help"]))
 async def cmd_help(client, message):
     from .auth import is_auth
     if not is_auth(message): return await message.reply("⛔ Unauthorized.")

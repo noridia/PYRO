@@ -205,7 +205,7 @@ class YtFormatPicker:
             self._make_menu(buttons, row_width=5))
 
 # ── YT Command ─────────────────────────────────────────────────────────
-@app.on_message(filters.command(["yt", "ytl", "ytzm", "ytzl"]) & filters.private)
+@app.on_message(filters.command(["yt", "ytl", "ytzm", "ytzl"]))
 async def cmd_yt(client, message, forced_cmd=None):
     from .auth import is_auth
     if not is_auth(message): return
