@@ -365,7 +365,7 @@ async def final_action_cb(client, call):
             f"✏️ <b>Rename:</b> <code>{old_name}</code>\n\nReply with new name:",
             reply_markup=m)
 
-@app.on_message(filters.text)
+@app.on_message(filters.create(lambda _, __, m: f"ren_{m.chat.id}" in PENDING_TASKS, name="pending_rename"))
 async def process_rename(client, message):
     key = f"ren_{message.chat.id}"
     if key not in PENDING_TASKS: return
